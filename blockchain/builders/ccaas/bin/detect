@@ -1,0 +1,7 @@
+#!/bin/sh
+set -eu
+METADIR=$2
+if grep -q '"type"[[:space:]]*:[[:space:]]*"ccaas"' "$METADIR/metadata.json"; then
+  exit 0
+fi
+exit 1

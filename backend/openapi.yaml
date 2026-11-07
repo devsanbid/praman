@@ -1,0 +1,392 @@
+openapi: 3.0.3
+info:
+  title: Praman certificate registry API
+  version: 1.0.0
+  description: |
+    Permissioned academic-certificate issuance and verification for a Nepal research prototype.
+    The ledger stores a certificate identifier, SHA-256 fingerprint, issuer identifier, status, and timestamps.
+    Personal data and PDF bytes stay in PostgreSQL and on the application disk.
+    A fingerprint match does not prove the presenter's legal identity.
+servers:
+  - url: /api/v1
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: praman_session
+    csrfHeader:
+      type: apiKey
+      in: header
+      name: x-csrf-token
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+    Envelope:
+      type: object
+      properties:
+        data: {}
+    Verification:
+      type: object
+      required: [result, documentChecked, limitations, message]
+      properties:
+        result:
+          type: string
+          enum: [VALID, TAMPERED, REVOKED, NOT_FOUND, INVALID_ISSUER, ERROR]
+        documentChecked: { type: boolean }
+        certificateId: { type: string, nullable: true }
+        institutionName: { type: string, nullable: true }
+        issuerStatus: { type: string, nullable: true }
+        certificateStatus: { type: string, nullable: true }
+        message: { type: string }
+        limitations:
+          type: array
+          items: { type: string }
+        holder:
+          nullable: true
+          description: Returned only to a signed-in verifier when the uploaded bytes match the ledger fingerprint.
+paths:
+  /health:
+    get:
+      summary: Process and cached ledger reachability
+      responses:
+        "200":
+          description: Health
+  /meta:
+    get:
+      summary: Public product notice
+      responses:
+        "200":
+          description: Notice
+  /auth/register:
+    post:
+      summary: Register a student or verifier
+      responses:
+        "201":
+          description: Session created
+  /auth/login:
+    post:
+      summary: Sign in
+      responses:
+        "200":
+          description: Session created
+        "401":
+          description: Invalid credentials
+  /auth/logout:
+    post:
+      summary: Sign out
+      security: [{ cookieAuth: [], csrfHeader: [] }]
+      responses:
+        "200":
+          description: Signed out
+  /auth/me:
+    get:
+      summary: Current user
+      security: [{ cookieAuth: [] }]
+      responses:
+        "200":
+          description: User
+  /auth/change-password:
+    post:
+      summary: Change password and rotate the session
+      security: [{ cookieAuth: [], csrfHeader: [] }]
+      responses:
+        "200":
+          description: Password changed
+  /institutions/applications:
+    post:
+      summary: Apply for an institution account. The account stays inactive until approval.
+      responses:
+        "201":
+          description: Pending application
+  /institutions/me:
+    get:
+      summary: Institution profile for the signed-in member
+      security: [{ cookieAuth: [] }]
+      responses:
+        "200":
+          description: Institution
+  /institutions/staff:
+    get:
+      summary: List staff
+      security: [{ cookieAuth: [] }]
+      responses:
+        "200":
+          description: Staff
+    post:
+      summary: Create staff with a temporary password
+      security: [{ cookieAuth: [], csrfHeader: [] }]
+      responses:
+        "201":
+          description: Staff created
+  /institutions/staff/{userId}/deactivate:
+    post:
+      summary: Deactivate a staff account
+      security: [{ cookieAuth: [], csrfHeader: [] }]
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Deactivated
+  /admin/institutions:
+    get:
+      summary: List institutions
+      security: [{ cookieAuth: [] }]
+      responses:
+        "200":
+          description: Institutions
+  /admin/institutions/{id}/approve:
+    post:
+      summary: Enrol a Fabric issuer identity and approve the institution
+      security: [{ cookieAuth: [], csrfHeader: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Approved only after the ledger commit
+  /admin/institutions/{id}/reject:
+    post:
+      summary: Reject a pending application
+      security: [{ cookieAuth: [], csrfHeader: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Rejected
+  /admin/institutions/{id}/suspend:
+    post:
+      summary: Suspend an issuer on the ledger, then in the database
+      security: [{ cookieAuth: [], csrfHeader: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Suspended
+  /admin/institutions/{id}/reactivate:
+    post:
+      summary: Reactivate a suspended issuer
+      security: [{ cookieAuth: [], csrfHeader: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Reactivated
+  /certificates:
+    get:
+      summary: List certificates visible to the caller
+      security: [{ cookieAuth: [] }]
+      responses:
+        "200":
+          description: Page
+    post:
+      summary: Issue a certificate. Success is returned only after the Fabric commit.
+      security: [{ cookieAuth: [], csrfHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [type, fullName, dateOfBirth, symbolOrRegNo, programName, academicYearBs, academicYearAd, gpaOrDivision, campusOrSchool, issueDate, consent, documentSource]
+              properties:
+                type: { type: string, enum: [SEE, PLUS_TWO, UNIVERSITY] }
+                documentSource: { type: string, enum: [generate, upload] }
+                document: { type: string, format: binary }
+                consent: { type: string, enum: ["true"] }
+      responses:
+        "201":
+          description: Issued
+  /certificates/{id}:
+    get:
+      summary: Certificate detail for the issuing institution or an administrator
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Certificate
+  /certificates/{id}/document:
+    get:
+      summary: Download the stored PDF
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: PDF
+  /certificates/{id}/qr:
+    get:
+      summary: QR code PNG for the public verification URL
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: PNG
+  /certificates/{id}/history:
+    get:
+      summary: On-chain write history for the certificate key
+      security: [{ cookieAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: History
+  /certificates/{id}/revoke:
+    post:
+      summary: Revoke on the ledger. Prior writes remain in history.
+      security: [{ cookieAuth: [], csrfHeader: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Revoked
+  /verify/{certificateId}:
+    get:
+      summary: Ledger status for a public identifier. This does not check a PDF.
+      parameters:
+        - in: path
+          name: certificateId
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Verification"
+  /verify:
+    post:
+      summary: Hash an uploaded PDF and compare it with the ledger
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [document]
+              properties:
+                document: { type: string, format: binary }
+                certificateId: { type: string }
+      responses:
+        "200":
+          description: Verification result, including ERROR when the ledger call fails
+  /students/certificates:
+    get:
+      summary: Certificates linked to the signed-in student
+      security: [{ cookieAuth: [] }]
+      responses:
+        "200":
+          description: Certificates
+  /students/certificates/claim:
+    post:
+      summary: Link a certificate with its identifier, date of birth, and symbol number
+      security: [{ cookieAuth: [], csrfHeader: [] }]
+      responses:
+        "200":
+          description: Claimed
+  /admin/stats:
+    get:
+      summary: Counts and ledger reachability
+      security: [{ cookieAuth: [] }]
+      responses:
+        "200":
+          description: Stats
+  /admin/users:
+    get:
+      summary: List users
+      security: [{ cookieAuth: [] }]
+      responses:
+        "200":
+          description: Users
+  /admin/users/{id}:
+    post:
+      summary: Activate or deactivate a user
+      security: [{ cookieAuth: [], csrfHeader: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Updated
+  /admin/audit:
+    get:
+      summary: Audit log page. Personal payloads are not stored.
+      security: [{ cookieAuth: [] }]
+      responses:
+        "200":
+          description: Audit page
+  /admin/audit/verify:
+    get:
+      summary: Recompute the audit hash chain
+      security: [{ cookieAuth: [] }]
+      responses:
+        "200":
+          description: Chain check
+  /admin/settings:
+    get:
+      summary: Read the public notice
+      security: [{ cookieAuth: [] }]
+      responses:
+        "200":
+          description: Settings
+    put:
+      summary: Update the public notice
+      security: [{ cookieAuth: [], csrfHeader: [] }]
+      responses:
+        "200":
+          description: Updated
+  /admin/certificates/{id}/reconcile:
+    post:
+      summary: Align the database status with a confirmed ledger record
+      security: [{ cookieAuth: [], csrfHeader: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Reconciled

@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+SOURCE=$1
+OUTPUT=$3
+if [ ! -f "$SOURCE/connection.json" ]; then
+  echo "$SOURCE/connection.json not found" >&2
+  exit 1
+fi
+cp "$SOURCE/connection.json" "$OUTPUT/connection.json"
+exit 0

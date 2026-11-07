@@ -1,0 +1,29 @@
+name: praman-chaincode
+
+services:
+  chaincode.platform:
+    image: praman-certregistry:local
+    container_name: chaincode.platform
+    environment:
+      CHAINCODE_ID: ${CHAINCODE_ID}
+      CHAINCODE_ADDRESS: 0.0.0.0:9999
+    networks:
+      praman_fabric:
+        aliases:
+          - chaincode.platform
+
+  chaincode.issuers:
+    image: praman-certregistry:local
+    container_name: chaincode.issuers
+    environment:
+      CHAINCODE_ID: ${CHAINCODE_ID}
+      CHAINCODE_ADDRESS: 0.0.0.0:9999
+    networks:
+      praman_fabric:
+        aliases:
+          - chaincode.issuers
+
+networks:
+  praman_fabric:
+    external: true
+    name: praman_fabric

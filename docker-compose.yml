@@ -1,0 +1,86 @@
+name: praman
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - praman_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - praman_app
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      NODE_ENV: production
+      APP_PORT: 4000
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN}
+      SESSION_SECRET: ${SESSION_SECRET}
+      SESSION_TTL_HOURS: ${SESSION_TTL_HOURS}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_NAME: ${ADMIN_NAME}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      UPLOAD_DIR: /data/certificates
+      WALLET_DIR: /data/wallets
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES}
+      FABRIC_PEER_ENDPOINT: ${FABRIC_PEER_ENDPOINT}
+      FABRIC_PEER_HOST_ALIAS: ${FABRIC_PEER_HOST_ALIAS}
+      FABRIC_CHANNEL: ${FABRIC_CHANNEL}
+      FABRIC_CHAINCODE: ${FABRIC_CHAINCODE}
+      FABRIC_PLATFORM_MSP: ${FABRIC_PLATFORM_MSP}
+      FABRIC_ISSUER_MSP: ${FABRIC_ISSUER_MSP}
+      FABRIC_TLS_CERT_PATH: ${FABRIC_TLS_CERT_PATH}
+      FABRIC_PLATFORM_CERT_PATH: ${FABRIC_PLATFORM_CERT_PATH}
+      FABRIC_PLATFORM_KEY_PATH: ${FABRIC_PLATFORM_KEY_PATH}
+      FABRIC_VERIFIER_CERT_PATH: ${FABRIC_VERIFIER_CERT_PATH}
+      FABRIC_VERIFIER_KEY_PATH: ${FABRIC_VERIFIER_KEY_PATH}
+      FABRIC_CA_URL: ${FABRIC_CA_URL}
+      FABRIC_CA_NAME: ${FABRIC_CA_NAME}
+      FABRIC_CA_TLS_CERT_PATH: ${FABRIC_CA_TLS_CERT_PATH}
+      FABRIC_CA_REGISTRAR_CERT_PATH: ${FABRIC_CA_REGISTRAR_CERT_PATH}
+      FABRIC_CA_REGISTRAR_KEY_PATH: ${FABRIC_CA_REGISTRAR_KEY_PATH}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-}
+    volumes:
+      - ./storage/certificates:/data/certificates
+      - ./storage/wallets:/data/wallets
+      - ./blockchain/organizations:/fabric/organizations:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - praman_app
+      - praman_fabric
+    ports:
+      - "4000:4000"
+
+  frontend:
+    build:
+      context: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+    networks:
+      - praman_app
+
+networks:
+  praman_app:
+  praman_fabric:
+    external: true
+    name: praman_fabric
+
+volumes:
+  praman_pg:

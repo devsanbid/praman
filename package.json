@@ -1,0 +1,12 @@
+{
+  "name": "praman",
+  "private": true,
+  "scripts": {
+    "test": "npm --prefix backend test && npm --prefix frontend test",
+    "test:chaincode": "go test -C blockchain/chaincode/certregistry ./...",
+    "install": "bash install.sh",
+    "stop": "bash stop.sh",
+    "fabric:up": "bash scripts/fabric-up.sh",
+    "fabric:down": "bash scripts/fabric-down.sh"
+  }
+}

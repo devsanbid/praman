@@ -1,0 +1,7 @@
+# Partial peer config. Unspecified keys keep the Fabric peer defaults.
+chaincode:
+  externalBuilders:
+    - name: ccaas
+      path: /opt/praman/ccaas-builder
+      propagateEnvironment:
+        - CHAINCODE_PEER_HOST

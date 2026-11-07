@@ -1,0 +1,187 @@
+name: praman-fabric
+
+services:
+  ca.platform.certnet.local:
+    image: hyperledger/fabric-ca:1.5.15
+    container_name: ca.platform.certnet.local
+    environment:
+      - FABRIC_CA_HOME=/etc/hyperledger/fabric-ca-server
+      - FABRIC_CA_SERVER_CA_NAME=ca-platform
+      - FABRIC_CA_SERVER_TLS_ENABLED=true
+      - FABRIC_CA_SERVER_PORT=7054
+      - FABRIC_CA_SERVER_CSR_HOSTS=ca.platform.certnet.local,localhost
+      - CA_PLATFORM_ADMIN_USER=${CA_PLATFORM_ADMIN_USER}
+      - CA_PLATFORM_ADMIN_PASSWORD=${CA_PLATFORM_ADMIN_PASSWORD}
+    ports:
+      - "7054:7054"
+    command:
+      - sh
+      - -c
+      - fabric-ca-server start -b $${CA_PLATFORM_ADMIN_USER}:$${CA_PLATFORM_ADMIN_PASSWORD} -d
+    volumes:
+      - ./organizations/fabric-ca/platform:/etc/hyperledger/fabric-ca-server
+    networks:
+      - praman_fabric
+
+  ca.issuers.certnet.local:
+    image: hyperledger/fabric-ca:1.5.15
+    container_name: ca.issuers.certnet.local
+    environment:
+      - FABRIC_CA_HOME=/etc/hyperledger/fabric-ca-server
+      - FABRIC_CA_SERVER_CA_NAME=ca-issuers
+      - FABRIC_CA_SERVER_TLS_ENABLED=true
+      - FABRIC_CA_SERVER_PORT=8054
+      - FABRIC_CA_SERVER_CSR_HOSTS=ca.issuers.certnet.local,localhost
+      - CA_ISSUER_ADMIN_USER=${CA_ISSUER_ADMIN_USER}
+      - CA_ISSUER_ADMIN_PASSWORD=${CA_ISSUER_ADMIN_PASSWORD}
+    ports:
+      - "8054:8054"
+    command:
+      - sh
+      - -c
+      - fabric-ca-server start -b $${CA_ISSUER_ADMIN_USER}:$${CA_ISSUER_ADMIN_PASSWORD} -d
+    volumes:
+      - ./organizations/fabric-ca/issuers:/etc/hyperledger/fabric-ca-server
+    networks:
+      - praman_fabric
+
+  ca.orderer.certnet.local:
+    image: hyperledger/fabric-ca:1.5.15
+    container_name: ca.orderer.certnet.local
+    environment:
+      - FABRIC_CA_HOME=/etc/hyperledger/fabric-ca-server
+      - FABRIC_CA_SERVER_CA_NAME=ca-orderer
+      - FABRIC_CA_SERVER_TLS_ENABLED=true
+      - FABRIC_CA_SERVER_PORT=9054
+      - FABRIC_CA_SERVER_CSR_HOSTS=ca.orderer.certnet.local,localhost
+      - CA_ORDERER_ADMIN_USER=${CA_ORDERER_ADMIN_USER}
+      - CA_ORDERER_ADMIN_PASSWORD=${CA_ORDERER_ADMIN_PASSWORD}
+    ports:
+      - "9054:9054"
+    command:
+      - sh
+      - -c
+      - fabric-ca-server start -b $${CA_ORDERER_ADMIN_USER}:$${CA_ORDERER_ADMIN_PASSWORD} -d
+    volumes:
+      - ./organizations/fabric-ca/orderer:/etc/hyperledger/fabric-ca-server
+    networks:
+      - praman_fabric
+
+  orderer.certnet.local:
+    image: hyperledger/fabric-orderer:2.5.12
+    container_name: orderer.certnet.local
+    environment:
+      - FABRIC_LOGGING_SPEC=INFO
+      - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
+      - ORDERER_GENERAL_LISTENPORT=7050
+      - ORDERER_GENERAL_LOCALMSPID=OrdererMSP
+      - ORDERER_GENERAL_LOCALMSPDIR=/var/hyperledger/orderer/msp
+      - ORDERER_GENERAL_TLS_ENABLED=true
+      - ORDERER_GENERAL_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_TLS_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_GENERAL_CLUSTER_CLIENTCERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_CLUSTER_CLIENTPRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_CLUSTER_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_GENERAL_BOOTSTRAPMETHOD=none
+      - ORDERER_CHANNELPARTICIPATION_ENABLED=true
+      - ORDERER_ADMIN_TLS_ENABLED=true
+      - ORDERER_ADMIN_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_ADMIN_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_ADMIN_TLS_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_ADMIN_TLS_CLIENTROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+      - ORDERER_ADMIN_LISTENADDRESS=0.0.0.0:7053
+    ports:
+      - "7050:7050"
+      - "7053:7053"
+    volumes:
+      - ./organizations/ordererOrganizations/certnet.local/orderers/orderer.certnet.local/msp:/var/hyperledger/orderer/msp
+      - ./organizations/ordererOrganizations/certnet.local/orderers/orderer.certnet.local/tls:/var/hyperledger/orderer/tls
+      - orderer-data:/var/hyperledger/production/orderer
+    networks:
+      - praman_fabric
+
+  peer0.platform.certnet.local:
+    image: hyperledger/fabric-peer:2.5.12
+    container_name: peer0.platform.certnet.local
+    environment:
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/peer/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/peer/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/peer/tls/ca.crt
+      - CORE_PEER_ID=peer0.platform.certnet.local
+      - CORE_PEER_ADDRESS=peer0.platform.certnet.local:7051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:7051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.platform.certnet.local:7052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:7052
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.platform.certnet.local:7051
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.platform.certnet.local:7051
+      - CORE_PEER_GOSSIP_USELEADERELECTION=false
+      - CORE_PEER_GOSSIP_ORGLEADER=true
+      - CORE_PEER_LOCALMSPID=PlatformMSP
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/peer/msp
+      - CORE_VM_ENDPOINT=unix:///var/run/docker.sock
+      - CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG={"peername":"chaincode.platform"}
+    ports:
+      - "7051:7051"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./organizations/peerOrganizations/platform.certnet.local/peers/peer0.platform.certnet.local/msp:/etc/hyperledger/peer/msp
+      - ./organizations/peerOrganizations/platform.certnet.local/peers/peer0.platform.certnet.local/tls:/etc/hyperledger/peer/tls
+      - peer0.platform:/var/hyperledger/production
+    networks:
+      - praman_fabric
+
+  peer0.issuers.certnet.local:
+    image: hyperledger/fabric-peer:2.5.12
+    container_name: peer0.issuers.certnet.local
+    environment:
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/peer/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/peer/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/peer/tls/ca.crt
+      - CORE_PEER_ID=peer0.issuers.certnet.local
+      - CORE_PEER_ADDRESS=peer0.issuers.certnet.local:9051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:9051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.issuers.certnet.local:9052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:9052
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.issuers.certnet.local:9051
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.issuers.certnet.local:9051
+      - CORE_PEER_GOSSIP_USELEADERELECTION=false
+      - CORE_PEER_GOSSIP_ORGLEADER=true
+      - CORE_PEER_LOCALMSPID=IssuerMSP
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/peer/msp
+      - CORE_VM_ENDPOINT=unix:///var/run/docker.sock
+      - CHAINCODE_AS_A_SERVICE_BUILDER_CONFIG={"peername":"chaincode.issuers"}
+    ports:
+      - "9051:9051"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./organizations/peerOrganizations/issuers.certnet.local/peers/peer0.issuers.certnet.local/msp:/etc/hyperledger/peer/msp
+      - ./organizations/peerOrganizations/issuers.certnet.local/peers/peer0.issuers.certnet.local/tls:/etc/hyperledger/peer/tls
+      - peer0.issuers:/var/hyperledger/production
+    networks:
+      - praman_fabric
+
+  cli:
+    image: hyperledger/fabric-tools:2.5.12
+    container_name: praman.cli
+    tty: true
+    stdin_open: true
+    working_dir: /work
+    command: sleep infinity
+    volumes:
+      - ./:/work
+    networks:
+      - praman_fabric
+
+networks:
+  praman_fabric:
+    name: praman_fabric
+
+volumes:
+  orderer-data:
+  peer0.platform:
+  peer0.issuers:

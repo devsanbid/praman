@@ -1,0 +1,17 @@
+#!/bin/sh
+set -eu
+BLD=$1
+RELEASE=$2
+if [ ! -f "$BLD/connection.json" ]; then
+  echo "connection.json missing from build output" >&2
+  exit 1
+fi
+mkdir -p "$RELEASE/chaincode/server"
+# Each peer sets CHAINCODE_PEER_HOST so both organizations install one package
+# and dial their own chaincode process.
+if [ -z "${CHAINCODE_PEER_HOST:-}" ]; then
+  echo "CHAINCODE_PEER_HOST is not set" >&2
+  exit 1
+fi
+sed "s/CHAINCODE_PEER_HOST/${CHAINCODE_PEER_HOST}/g" "$BLD/connection.json" > "$RELEASE/chaincode/server/connection.json"
+exit 0

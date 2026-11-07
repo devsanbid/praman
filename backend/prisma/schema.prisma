@@ -1,0 +1,253 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  INSTITUTION_ADMIN
+  INSTITUTION_STAFF
+  STUDENT
+  VERIFIER
+}
+
+enum InstitutionType {
+  SEE_BOARD
+  PLUS_TWO
+  UNIVERSITY
+}
+
+enum InstitutionStatus {
+  PENDING
+  APPROVED
+  SUSPENDED
+  REJECTED
+}
+
+enum CertificateType {
+  SEE
+  PLUS_TWO
+  UNIVERSITY
+}
+
+enum CertificateStatus {
+  PENDING_CHAIN
+  VALID
+  REVOKED
+  ISSUANCE_FAILED
+}
+
+enum VerificationResult {
+  VALID
+  TAMPERED
+  REVOKED
+  NOT_FOUND
+  INVALID_ISSUER
+  ERROR
+}
+
+enum ChainTxStatus {
+  CONFIRMED
+  FAILED
+}
+
+model User {
+  id                   String    @id @default(uuid())
+  email                String    @unique
+  passwordHash         String
+  fullName             String
+  role                 Role
+  isActive             Boolean   @default(true)
+  mustChangePassword   Boolean   @default(false)
+  failedLoginCount     Int       @default(0)
+  lockedUntil          DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  sessions             Session[]
+  membership           InstitutionMember?
+  studentLinks         Student[] @relation("StudentUser")
+  auditLogs            AuditLog[]
+  verificationLogs     VerificationLog[]
+  revocations          CertificateRevocation[]
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  csrfToken String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  ipHash    String?
+  userAgent String?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Institution {
+  id                   String            @id @default(uuid())
+  name                 String
+  type                 InstitutionType
+  registrationNumber   String            @unique
+  addressLine          String
+  district             String
+  province             String
+  phone                String
+  email                String
+  website              String?
+  representativeName   String
+  representativeTitle  String
+  status               InstitutionStatus @default(PENDING)
+  fabricIssuerId       String?           @unique
+  fabricEnrollmentId   String?
+  rejectionReason      String?
+  approvedAt           DateTime?
+  suspendedAt          DateTime?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  members              InstitutionMember[]
+  certificates         Certificate[]
+
+  @@index([status])
+}
+
+model InstitutionMember {
+  id             String      @id @default(uuid())
+  userId         String      @unique
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institutionId  String
+  institution    Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  jobTitle       String
+  canIssue       Boolean     @default(false)
+  canRevoke      Boolean     @default(false)
+  canManageStaff Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+
+  @@index([institutionId])
+}
+
+model Student {
+  id          String        @id @default(uuid())
+  fullName    String
+  dateOfBirth DateTime      @db.Date
+  email       String?
+  userId      String?
+  user        User?         @relation("StudentUser", fields: [userId], references: [id])
+  createdAt   DateTime      @default(now())
+  certificates Certificate[]
+
+  @@index([email])
+}
+
+model Certificate {
+  id               String            @id
+  type             CertificateType
+  status           CertificateStatus
+  institutionId    String
+  institution      Institution       @relation(fields: [institutionId], references: [id])
+  studentId        String
+  student          Student           @relation(fields: [studentId], references: [id])
+  sha256           String
+  canonicalSha256  String
+  pdfStorageKey    String
+  pdfByteSize      Int
+  originalFileName String?
+  programName      String
+  academicYearBs   String
+  academicYearAd   Int
+  symbolOrRegNo    String
+  gpaOrDivision    String
+  streamOrFaculty  String?
+  campusOrSchool   String
+  issueDate        DateTime          @db.Date
+  holderEmail      String?
+  issuedAt         DateTime?
+  chainTxId        String?
+  idempotencyKey   String?
+  consentRecorded  Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  revocation       CertificateRevocation?
+  verifications    VerificationLog[]
+  chainTxs         BlockchainTransaction[]
+
+  @@unique([institutionId, idempotencyKey])
+  @@index([sha256])
+  @@index([institutionId, createdAt])
+  @@index([studentId])
+  @@index([status])
+  @@index([symbolOrRegNo])
+}
+
+model CertificateRevocation {
+  id              String      @id @default(uuid())
+  certificateId   String      @unique
+  certificate     Certificate @relation(fields: [certificateId], references: [id])
+  reason          String
+  revokedAt       DateTime
+  revokedByUserId String
+  revokedBy       User        @relation(fields: [revokedByUserId], references: [id])
+  chainTxId       String?
+}
+
+model VerificationLog {
+  id               String             @id @default(uuid())
+  certificateId    String?
+  certificate      Certificate?       @relation(fields: [certificateId], references: [id])
+  result           VerificationResult
+  submittedSha256  String?
+  method           String
+  verifierUserId   String?
+  verifier         User?              @relation(fields: [verifierUserId], references: [id])
+  ipHash           String?
+  latencyMs        Int?
+  createdAt        DateTime           @default(now())
+
+  @@index([createdAt])
+  @@index([result])
+  @@index([certificateId])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorUserId String?
+  actor       User?    @relation(fields: [actorUserId], references: [id])
+  action      String
+  entityType  String
+  entityId    String?
+  metadata    Json
+  prevHash    String
+  entryHash   String
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([action])
+  @@index([entityType, entityId])
+}
+
+model BlockchainTransaction {
+  id            String       @id @default(uuid())
+  functionName  String
+  txId          String?      @unique
+  certificateId String?
+  certificate   Certificate? @relation(fields: [certificateId], references: [id])
+  institutionId String?
+  status        ChainTxStatus
+  errorCode     String?
+  createdAt     DateTime     @default(now())
+
+  @@index([certificateId])
+  @@index([createdAt])
+}
+
+model SystemSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
