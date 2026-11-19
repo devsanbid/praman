@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError, api, downloadFile } from "../api";
 import { useAuth } from "../auth";
@@ -6,21 +6,58 @@ import { Alert, Button, Empty, Field, Modal, Shell, StatusPill, controlClass } f
 
 type Page<T> = { items: T[]; page: number; pageSize: number; total: number };
 
+type CountMap = Record<string, number>;
+
+type AdminStats = {
+  institutions: CountMap;
+  certificates: CountMap;
+  verificationsLast24h: CountMap;
+  chainReachable: boolean;
+};
+
+const institutionCounts: [string, string][] = [
+  ["APPROVED", "Approved"],
+  ["PENDING", "Pending"],
+  ["SUSPENDED", "Suspended"],
+  ["REJECTED", "Rejected"],
+];
+
+const certificateCounts: [string, string][] = [
+  ["VALID", "Valid"],
+  ["REVOKED", "Revoked"],
+  ["PENDING_CHAIN", "Waiting for the ledger"],
+  ["ISSUANCE_FAILED", "Issuance failed"],
+];
+
+const verificationCounts: [string, string][] = [
+  ["VALID", "Valid"],
+  ["TAMPERED", "Tampered"],
+  ["REVOKED", "Revoked"],
+  ["NOT_FOUND", "Not found"],
+  ["INVALID_ISSUER", "Invalid issuer"],
+  ["ERROR", "Error"],
+];
+
 export function AdminHome() {
-  const [stats, setStats] = useState<Record<string, unknown> | null>(null);
+  const [stats, setStats] = useState<AdminStats | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
-    void api<Record<string, unknown>>("/api/v1/admin/stats").then(setStats).catch((caught: unknown) => setError(caught instanceof ApiError ? caught.message : "Could not load stats"));
+    void api<AdminStats>("/api/v1/admin/stats").then(setStats).catch((caught: unknown) => setError(caught instanceof ApiError ? caught.message : "Could not load stats"));
   }, []);
+  const institutions = countRows(stats?.institutions, institutionCounts);
+  const certificates = countRows(stats?.certificates, certificateCounts);
+  const verifications = countRows(stats?.verificationsLast24h, verificationCounts);
   return (
     <Shell title="Platform overview">
       {error ? <Alert tone="bad">{error}</Alert> : null}
       {!stats ? <p className="text-sm">Loading…</p> : (
         <div className="grid gap-3 sm:grid-cols-2">
-          <Card title="Institutions" body={JSON.stringify(stats.institutions)} />
-          <Card title="Certificates" body={JSON.stringify(stats.certificates)} />
-          <Card title="Verifications, last 24 hours" body={JSON.stringify(stats.verificationsLast24h)} />
-          <Card title="Ledger" body={stats.chainReachable ? "Reachable" : "Not reachable"} />
+          <CountCard title="Institutions" rows={institutions} />
+          <CountCard title="Certificates" rows={certificates} />
+          <CountCard title="Verifications, last 24 hours" rows={verifications} hideZero empty="No checks in the last 24 hours" />
+          <Card title="Ledger">
+            <p className="mt-2 font-serif text-3xl">{stats.chainReachable ? "Reachable" : "Not reachable"}</p>
+          </Card>
         </div>
       )}
     </Shell>
@@ -622,6 +659,50 @@ function homeAfter(role: string): string {
   return "/institution";
 }
 
-function Card({ title, body }: { title: string; body: string }) {
-  return <article className="rounded-lg border border-line bg-card p-4"><h2 className="text-sm text-ink/60">{title}</h2><p className="mt-2 break-words font-serif text-xl">{body}</p></article>;
+function countRows(source: CountMap | undefined, order: [string, string][]) {
+  const known = new Set(order.map(([key]) => key));
+  const rows = order.map(([key, label]) => ({ label, count: numberOf(source?.[key]) }));
+  for (const [key, value] of Object.entries(source ?? {})) {
+    if (!known.has(key)) rows.push({ label: labelFor(key), count: numberOf(value) });
+  }
+  return rows;
+}
+
+function numberOf(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function labelFor(key: string): string {
+  const words = key.toLowerCase().split("_").filter(Boolean);
+  if (words.length === 0) return key;
+  return words.map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
+}
+
+function Card({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <article className="rounded-lg border border-line bg-card p-4">
+      <h2 className="text-sm text-ink/60">{title}</h2>
+      {children}
+    </article>
+  );
+}
+
+function CountCard({ title, rows, hideZero = false, empty }: { title: string; rows: { label: string; count: number }[]; hideZero?: boolean; empty?: string }) {
+  const total = rows.reduce((sum, row) => sum + row.count, 0);
+  const visible = hideZero ? rows.filter((row) => row.count > 0) : rows;
+  return (
+    <Card title={title}>
+      <p className="mt-2 font-serif text-3xl">{total}</p>
+      {visible.length === 0 && empty ? <p className="mt-2 text-sm text-ink/70">{empty}</p> : (
+        <ul className="mt-3 space-y-1.5">
+          {visible.map((row) => (
+            <li key={row.label} className="flex items-baseline justify-between gap-4 text-sm">
+              <span>{row.label}</span>
+              <span className="tabular-nums">{row.count}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
 }
