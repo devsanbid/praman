@@ -38,7 +38,7 @@ bash stop.sh
 
 `bash scripts/fabric-down.sh` is the full reset. It deletes the Fabric identities as well. It does not drop PostgreSQL. `docker compose --env-file .env down` stops only the website, API, and database.
 
-Open http://localhost:8080. The home page lists prototype accounts. Click one to sign in. Every demo account uses the password `PramanDemo2082`. The administrator email is `admin@praman.local`. The university is `university@praman.demo` and the student is `student@praman.demo`. A sample university certificate is already linked to the student when the ledger is up. Swagger is at http://localhost:8080/api/docs.
+Open http://localhost:8080. The home page lists prototype accounts. Click one to sign in. Every demo account uses the password `PramanDemo2082`. The administrator email is `admin@praman.local`. Himalaya University signs in as `university@praman.demo` and Rahul Shrestha signs in as `student@praman.demo`. A sample university certificate is already linked to the student when the ledger is up. Swagger is at http://localhost:8080/api/docs.
 
 The API replaces the administrator password with `PramanDemo2082` on startup so the card on the home page matches. `ADMIN_PASSWORD` in `.env` is used only when that account does not exist yet.
 

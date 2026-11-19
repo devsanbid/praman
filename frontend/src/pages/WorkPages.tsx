@@ -299,12 +299,92 @@ export function InstitutionHome() {
   );
 }
 
+type CertificateType = "SEE" | "PLUS_TWO" | "UNIVERSITY";
+
+type IssueDraft = {
+  type: CertificateType;
+  fullName: string;
+  dateOfBirth: string;
+  holderEmail: string;
+  symbolOrRegNo: string;
+  programName: string;
+  streamOrFaculty: string;
+  campusOrSchool: string;
+  gpaOrDivision: string;
+  academicYearBs: string;
+  academicYearAd: string;
+  issueDate: string;
+};
+
+const issueSamples: Record<CertificateType, Omit<IssueDraft, "type">> = {
+  SEE: {
+    fullName: "Rahul Shrestha",
+    dateOfBirth: "2008-04-12",
+    holderEmail: "rahul.shrestha@praman.demo",
+    symbolOrRegNo: "20820821",
+    programName: "Secondary Education Examination",
+    streamOrFaculty: "General",
+    campusOrSchool: "River View Secondary School",
+    gpaOrDivision: "3.52",
+    academicYearBs: "2082",
+    academicYearAd: "2025",
+    issueDate: "2025-12-01",
+  },
+  PLUS_TWO: {
+    fullName: "Priya Tamang",
+    dateOfBirth: "2006-09-23",
+    holderEmail: "priya.tamang@praman.demo",
+    symbolOrRegNo: "20811564",
+    programName: "Science",
+    streamOrFaculty: "Science",
+    campusOrSchool: "Capital Higher Secondary School",
+    gpaOrDivision: "3.38",
+    academicYearBs: "2081",
+    academicYearAd: "2024",
+    issueDate: "2025-12-01",
+  },
+  UNIVERSITY: {
+    fullName: "Aakash Adhikari",
+    dateOfBirth: "2003-01-18",
+    holderEmail: "aakash.adhikari@praman.demo",
+    symbolOrRegNo: "20810773",
+    programName: "Bachelor of Computer Science",
+    streamOrFaculty: "Science and Technology",
+    campusOrSchool: "Central Campus, Himalaya University",
+    gpaOrDivision: "3.61",
+    academicYearBs: "2081",
+    academicYearAd: "2024",
+    issueDate: "2025-12-01",
+  },
+};
+
+function sampleDraft(type: CertificateType): IssueDraft {
+  return { type, ...issueSamples[type] };
+}
+
+function certificateTypeForInstitution(institutionType: string): CertificateType {
+  if (institutionType === "SEE_BOARD") return "SEE";
+  if (institutionType === "PLUS_TWO") return "PLUS_TWO";
+  return "UNIVERSITY";
+}
+
 export function IssuePage() {
   const { user } = useAuth();
   const [error, setError] = useState("");
   const [done, setDone] = useState<{ id: string; verificationUrl: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [source, setSource] = useState("generate");
+  const [draft, setDraft] = useState<IssueDraft>(() => sampleDraft("UNIVERSITY"));
+
+  useEffect(() => {
+    void api<InstitutionProfile>("/api/v1/institutions/me")
+      .then((profile) => setDraft(sampleDraft(certificateTypeForInstitution(profile.type))))
+      .catch(() => undefined);
+  }, []);
+
+  function updateDraft(key: keyof IssueDraft, value: string) {
+    setDraft((current) => ({ ...current, [key]: value }));
+  }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -338,10 +418,11 @@ export function IssuePage() {
           Issued {done.id}. The ledger commit completed. <Link className="underline" to={`/institution/certificates/${done.id}`}>Open the record</Link>
         </Alert>
       ) : (
+        <div>
         <form className="grid max-w-3xl gap-3 sm:grid-cols-2" onSubmit={onSubmit}>
           {error ? <div className="sm:col-span-2"><Alert tone="bad">{error}</Alert></div> : null}
           <Field label="Certificate type">
-            <select className={controlClass} name="type" defaultValue="SEE">
+            <select className={controlClass} name="type" value={draft.type} onChange={(event) => setDraft(sampleDraft(event.target.value as CertificateType))}>
               <option value="SEE">SEE</option>
               <option value="PLUS_TWO">Higher secondary (+2)</option>
               <option value="UNIVERSITY">University</option>
@@ -353,24 +434,53 @@ export function IssuePage() {
               <option value="upload">Upload an existing PDF</option>
             </select>
           </Field>
-          <Field label="Holder name"><input className={controlClass} name="fullName" required /></Field>
-          <Field label="Date of birth"><input className={controlClass} name="dateOfBirth" type="date" required /></Field>
-          <Field label="Holder email"><input className={controlClass} name="holderEmail" type="email" /></Field>
-          <Field label="Symbol or registration number"><input className={controlClass} name="symbolOrRegNo" required /></Field>
-          <Field label="Programme"><input className={controlClass} name="programName" required /></Field>
-          <Field label="Stream or faculty"><input className={controlClass} name="streamOrFaculty" /></Field>
-          <Field label="Campus or school"><input className={controlClass} name="campusOrSchool" required /></Field>
-          <Field label="GPA or division"><input className={controlClass} name="gpaOrDivision" required /></Field>
-          <Field label="Academic year (BS)"><input className={controlClass} name="academicYearBs" required pattern="\d{4}" placeholder="2082" /></Field>
-          <Field label="Academic year (AD)"><input className={controlClass} name="academicYearAd" type="number" required defaultValue={2025} /></Field>
-          <Field label="Issue date"><input className={controlClass} name="issueDate" type="date" required /></Field>
+          <Field label="Holder name"><input className={controlClass} name="fullName" required value={draft.fullName} onChange={(event) => updateDraft("fullName", event.target.value)} /></Field>
+          <Field label="Date of birth"><input className={controlClass} name="dateOfBirth" type="date" required value={draft.dateOfBirth} onChange={(event) => updateDraft("dateOfBirth", event.target.value)} /></Field>
+          <Field label="Holder email"><input className={controlClass} name="holderEmail" type="email" value={draft.holderEmail} onChange={(event) => updateDraft("holderEmail", event.target.value)} /></Field>
+          <Field label="Symbol or registration number"><input className={controlClass} name="symbolOrRegNo" required value={draft.symbolOrRegNo} onChange={(event) => updateDraft("symbolOrRegNo", event.target.value)} /></Field>
+          <Field label="Programme"><input className={controlClass} name="programName" required value={draft.programName} onChange={(event) => updateDraft("programName", event.target.value)} /></Field>
+          <Field label="Stream or faculty"><input className={controlClass} name="streamOrFaculty" value={draft.streamOrFaculty} onChange={(event) => updateDraft("streamOrFaculty", event.target.value)} /></Field>
+          <Field label="Campus or school"><input className={controlClass} name="campusOrSchool" required value={draft.campusOrSchool} onChange={(event) => updateDraft("campusOrSchool", event.target.value)} /></Field>
+          <Field label="GPA or division"><input className={controlClass} name="gpaOrDivision" required value={draft.gpaOrDivision} onChange={(event) => updateDraft("gpaOrDivision", event.target.value)} /></Field>
+          <Field label="Academic year (BS)"><input className={controlClass} name="academicYearBs" required pattern="\d{4}" placeholder="2082" value={draft.academicYearBs} onChange={(event) => updateDraft("academicYearBs", event.target.value)} /></Field>
+          <Field label="Academic year (AD)"><input className={controlClass} name="academicYearAd" type="number" required value={draft.academicYearAd} onChange={(event) => updateDraft("academicYearAd", event.target.value)} /></Field>
+          <Field label="Issue date"><input className={controlClass} name="issueDate" type="date" required value={draft.issueDate} onChange={(event) => updateDraft("issueDate", event.target.value)} /></Field>
           {source === "upload" ? <div className="sm:col-span-2"><Field label="PDF"><input className={controlClass} name="document" type="file" accept="application/pdf,.pdf" required /></Field></div> : null}
           <label className="sm:col-span-2 flex items-start gap-2 text-sm">
-            <input name="consent" type="checkbox" required className="mt-1" />
+            <input name="consent" type="checkbox" required defaultChecked className="mt-1" />
             The holder was informed that a fingerprint of this document will be recorded on the permissioned ledger.
           </label>
           <div className="sm:col-span-2"><Button type="submit" disabled={busy}>{busy ? "Waiting for the ledger…" : "Issue and record fingerprint"}</Button></div>
         </form>
+        <section className="mt-8 max-w-5xl">
+          <h2 className="font-serif text-2xl">Use a sample student</h2>
+          <p className="mt-1 text-sm text-ink/70">Click a card. The fields above fill in, and the consent box stays checked.</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {(["SEE", "PLUS_TWO", "UNIVERSITY"] as CertificateType[]).map((type) => {
+              const sample = issueSamples[type];
+              const selected = draft.type === type;
+              const label = type === "SEE" ? "SEE student" : type === "PLUS_TWO" ? "+2 student" : "University student";
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => {
+                    setDraft(sampleDraft(type));
+                    setSource("generate");
+                  }}
+                  className={`rounded-lg border bg-card p-4 text-left hover:border-pine ${selected ? "border-pine" : "border-line"}`}
+                >
+                  <span className="block font-serif text-xl">{label}</span>
+                  <span className="mt-2 block text-sm">{sample.fullName}</span>
+                  <span className="mt-1 block text-sm text-ink/70">{sample.programName}</span>
+                  <span className="mt-2 block text-xs text-ink/60">Symbol {sample.symbolOrRegNo} · GPA {sample.gpaOrDivision}</span>
+                  <span className="mt-3 inline-block text-sm text-pine">{selected ? "Selected" : "Use"}</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+        </div>
       )}
     </Shell>
   );

@@ -10,7 +10,7 @@ These are deliberate prototype limits. They are not silent replacements of the b
 - The on-chain timestamp is the Fabric transaction time. The academic issue date stays in PostgreSQL.
 - LevelDB is the peer state database. CouchDB was not required for key lookups.
 - Batch timeout is one second so a demo does not wait on the default two-second batch.
-- Generated PDFs are labelled “PRAMAN PROTOTYPE” and state that they are not Government of Nepal certificates. Sample people and institutions are named “Sample … (Praman demo)”.
+- Generated PDFs are labelled “PRAMAN PROTOTYPE” and state that they are not Government of Nepal certificates. Sign-in cards use fictional names such as Himalaya University and Rahul Shrestha. The issue form fills the same kind of ordinary names.
 - A suspended issuer cannot write, but previously issued fingerprints remain valid. The verification payload reports issuer standing separately.
 - Development key directories are mode-relaxed so the API container can read material created as root. Application issuer keys stay mode `0600`.
 - The issuer CA registrar key is mounted into the API container. See the threat model.

@@ -11,11 +11,11 @@ type DemoAccount = { label: string; email: string; password: string; hint: strin
 
 const fallbackDemoAccounts: DemoAccount[] = [
   { label: "Administrator", email: "admin@praman.local", password: "PramanDemo2082", hint: "Approve institutions, users, and the audit log" },
-  { label: "SEE board", email: "see@praman.demo", password: "PramanDemo2082", hint: "Issue an SEE certificate" },
-  { label: "+2 school", email: "plus2@praman.demo", password: "PramanDemo2082", hint: "Issue a higher-secondary certificate" },
-  { label: "University", email: "university@praman.demo", password: "PramanDemo2082", hint: "Issue a university certificate" },
-  { label: "Student", email: "student@praman.demo", password: "PramanDemo2082", hint: "Open the sample certificate" },
-  { label: "Verifier", email: "verifier@praman.demo", password: "PramanDemo2082", hint: "Check a certificate file" },
+  { label: "Valley Examination Board", email: "see@praman.demo", password: "PramanDemo2082", hint: "Issue an SEE certificate" },
+  { label: "Capital Higher Secondary School", email: "plus2@praman.demo", password: "PramanDemo2082", hint: "Issue a higher-secondary certificate" },
+  { label: "Himalaya University", email: "university@praman.demo", password: "PramanDemo2082", hint: "Issue a bachelor certificate" },
+  { label: "Rahul Shrestha", email: "student@praman.demo", password: "PramanDemo2082", hint: "Open the bachelor certificate" },
+  { label: "Nabin Karki", email: "verifier@praman.demo", password: "PramanDemo2082", hint: "Check a certificate file" },
 ];
 
 type Verification = {

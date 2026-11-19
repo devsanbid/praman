@@ -25,38 +25,41 @@ export type DemoAccount = {
 export function demoDirectory(adminEmail: string): DemoAccount[] {
   return [
     { label: "Administrator", email: adminEmail, password: DEMO_PASSWORD, hint: "Approve institutions, users, and the audit log" },
-    { label: "SEE board", email: "see@praman.demo", password: DEMO_PASSWORD, hint: "Issue an SEE certificate" },
-    { label: "+2 school", email: "plus2@praman.demo", password: DEMO_PASSWORD, hint: "Issue a higher-secondary certificate" },
-    { label: "University", email: "university@praman.demo", password: DEMO_PASSWORD, hint: "Issue a university certificate" },
-    { label: "Student", email: "student@praman.demo", password: DEMO_PASSWORD, hint: "Open the sample certificate" },
-    { label: "Verifier", email: "verifier@praman.demo", password: DEMO_PASSWORD, hint: "Check a certificate file" },
+    { label: "Valley Examination Board", email: "see@praman.demo", password: DEMO_PASSWORD, hint: "Issue an SEE certificate" },
+    { label: "Capital Higher Secondary School", email: "plus2@praman.demo", password: DEMO_PASSWORD, hint: "Issue a higher-secondary certificate" },
+    { label: "Himalaya University", email: "university@praman.demo", password: DEMO_PASSWORD, hint: "Issue a bachelor certificate" },
+    { label: "Rahul Shrestha", email: "student@praman.demo", password: DEMO_PASSWORD, hint: "Open the bachelor certificate" },
+    { label: "Nabin Karki", email: "verifier@praman.demo", password: DEMO_PASSWORD, hint: "Check a certificate file" },
   ];
 }
 
 const institutions = [
   {
-    name: "Sample SEE Board (Praman demo)",
+    name: "Valley Examination Board",
     type: "SEE_BOARD" as const,
     registrationNumber: "DEMO-SEE-2082",
     email: "see@praman.demo",
-    representativeName: "Sample SEE Registrar (Praman demo)",
-    representativeTitle: "Registrar",
+    representativeName: "Bikash Sharma",
+    representativeTitle: "Controller of Examinations",
+    addressLine: "Exhibition Road, Kathmandu",
   },
   {
-    name: "Sample Higher Secondary School (Praman demo)",
+    name: "Capital Higher Secondary School",
     type: "PLUS_TWO" as const,
     registrationNumber: "DEMO-P2-2082",
     email: "plus2@praman.demo",
-    representativeName: "Sample Plus Two Principal (Praman demo)",
+    representativeName: "Anita Gurung",
     representativeTitle: "Principal",
+    addressLine: "Baneshwor, Kathmandu",
   },
   {
-    name: "Sample University (Praman demo)",
+    name: "Himalaya University",
     type: "UNIVERSITY" as const,
     registrationNumber: "DEMO-UNI-2082",
     email: "university@praman.demo",
-    representativeName: "Sample University Controller (Praman demo)",
+    representativeName: "Suresh Adhikari",
     representativeTitle: "Controller of Examinations",
+    addressLine: "Kirtipur, Kathmandu",
   },
 ];
 
@@ -84,13 +87,14 @@ export async function ensureDemoAccounts(config: AppConfig, chainReachable: bool
 
   await prisma.user.upsert({
     where: { email: "student@praman.demo" },
-    update: { fullName: "Sample Student (Praman demo)", role: "STUDENT", passwordHash, isActive: true, mustChangePassword: false, failedLoginCount: 0, lockedUntil: null },
-    create: { email: "student@praman.demo", fullName: "Sample Student (Praman demo)", role: "STUDENT", passwordHash, isActive: true },
+    update: { fullName: "Rahul Shrestha", role: "STUDENT", passwordHash, isActive: true, mustChangePassword: false, failedLoginCount: 0, lockedUntil: null },
+    create: { email: "student@praman.demo", fullName: "Rahul Shrestha", role: "STUDENT", passwordHash, isActive: true },
   });
+  await prisma.student.updateMany({ where: { email: "student@praman.demo" }, data: { fullName: "Rahul Shrestha" } });
   await prisma.user.upsert({
     where: { email: "verifier@praman.demo" },
-    update: { fullName: "Sample Verifier (Praman demo)", role: "VERIFIER", passwordHash, isActive: true, mustChangePassword: false, failedLoginCount: 0, lockedUntil: null },
-    create: { email: "verifier@praman.demo", fullName: "Sample Verifier (Praman demo)", role: "VERIFIER", passwordHash, isActive: true },
+    update: { fullName: "Nabin Karki", role: "VERIFIER", passwordHash, isActive: true, mustChangePassword: false, failedLoginCount: 0, lockedUntil: null },
+    create: { email: "verifier@praman.demo", fullName: "Nabin Karki", role: "VERIFIER", passwordHash, isActive: true },
   });
 
   for (const spec of institutions) {
@@ -125,7 +129,7 @@ async function ensureInstitution(
         name: spec.name,
         type: spec.type,
         registrationNumber: spec.registrationNumber,
-        addressLine: "Sample address, demonstration only",
+        addressLine: spec.addressLine,
         district: "Kathmandu",
         province: "Bagmati",
         phone: "9800000000",
@@ -155,8 +159,22 @@ async function ensureInstitution(
     });
   }
 
+  institution = await prisma.institution.update({
+    where: { id: institution.id },
+    data: {
+      name: spec.name,
+      representativeName: spec.representativeName,
+      representativeTitle: spec.representativeTitle,
+      addressLine: spec.addressLine,
+      district: "Kathmandu",
+      province: "Bagmati",
+      email: spec.email,
+    },
+  });
+
   const member = await prisma.institutionMember.findFirst({ where: { institutionId: institution.id } });
   if (member) {
+    await prisma.institutionMember.update({ where: { id: member.id }, data: { jobTitle: spec.representativeTitle } });
     await prisma.user.update({
       where: { id: member.userId },
       data: {
@@ -195,8 +213,8 @@ async function ensureSampleCertificate(config: AppConfig): Promise<void> {
     ? await prisma.student.findUnique({ where: { id: existing.studentId } })
     : await prisma.student.findFirst({ where: { email: studentUser.email } });
   const student = foundStudent
-    ? await prisma.student.update({ where: { id: foundStudent.id }, data: { userId: studentUser.id, fullName: "Sample Student (Praman demo)", email: studentUser.email, dateOfBirth } })
-    : await prisma.student.create({ data: { fullName: "Sample Student (Praman demo)", dateOfBirth, email: studentUser.email, userId: studentUser.id } });
+    ? await prisma.student.update({ where: { id: foundStudent.id }, data: { userId: studentUser.id, fullName: "Rahul Shrestha", email: studentUser.email, dateOfBirth } })
+    : await prisma.student.create({ data: { fullName: "Rahul Shrestha", dateOfBirth, email: studentUser.email, userId: studentUser.id } });
 
   const certificateId = existing?.id ?? newCertificateId("UNIVERSITY", "2081");
   const fields = {
@@ -204,12 +222,12 @@ async function ensureSampleCertificate(config: AppConfig): Promise<void> {
     verificationUrl: verificationUrl(config, certificateId),
     institutionName: institution.name,
     certificateTypeLabel: "University",
-    holderName: "Sample Student (Praman demo)",
+    holderName: "Rahul Shrestha",
     symbolOrRegNo: "20810042",
     programName: "Bachelor of Computer Science",
     academicYearBs: "2081",
     gpaOrDivision: "3.62",
-    campusOrSchool: "Sample Campus (Praman demo)",
+    campusOrSchool: "Central Campus, Himalaya University",
     issueDate: "2025-12-01",
   };
   const pdf = await buildCertificatePdf(fields);
