@@ -22,3 +22,5 @@ reports/*.json
 .DS_Store
 *.tgz
 *.tar.gz
+
+ssh/
