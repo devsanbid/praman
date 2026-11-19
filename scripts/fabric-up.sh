@@ -102,11 +102,22 @@ sleep 5
 docker exec praman.cli sh /work/scripts/channel.sh
 
 echo "Building chaincode image"
-(
-  cd "$ROOT/blockchain/chaincode/certregistry"
-  CGO_ENABLED=0 GOOS=linux go build -o bin/certregistry .
-  docker build -t praman-certregistry:local .
-)
+# Compile inside the Go image. The host Go is often older than go.mod, and
+# Ubuntu's Go refuses to download the newer toolchain.
+chaincode_dir="$ROOT/blockchain/chaincode/certregistry"
+mkdir -p "$chaincode_dir/bin"
+docker run --rm \
+  --user "$(id -u):$(id -g)" \
+  -e CGO_ENABLED=0 \
+  -e GOOS=linux \
+  -e GOCACHE=/tmp/go-cache \
+  -e GOPATH=/tmp/go \
+  -e GOFLAGS=-mod=readonly \
+  -v "$chaincode_dir":/src \
+  -w /src \
+  golang:1.23-bookworm \
+  go build -o bin/certregistry .
+docker build -t praman-certregistry:local "$chaincode_dir"
 
 CHAINCODE_ID="$(tr -d '[:space:]' < "$ROOT/blockchain/channel-artifacts/package.id")"
 export CHAINCODE_ID

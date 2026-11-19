@@ -18,11 +18,11 @@ Design notes are in `docs/`: requirements, architecture, blockchain membership, 
 
 ## Prerequisites
 
-Docker with Compose, Node.js 22, and Go 1.22 or newer. The Fabric images are pulled by the scripts. Ports used: 5432, 4000, 7050, 7051, 7053, 7054, 8054, 8080, 9051, 9054.
+Docker with Compose, OpenSSL, and curl. Node.js 22 and Go 1.22 or newer are only needed to run the tests on the host. The chaincode is compiled inside a Go 1.23 image, so the server does not need Go installed. Ports used: 5432, 4000, 7050, 7051, 7053, 7054, 8054, 8080, 9051, 9054.
 
 ## Run the full stack
 
-Docker must be running. Go and OpenSSL are used while the blockchain is prepared.
+Docker must be running. OpenSSL is used while the blockchain is prepared.
 
 ```bash
 bash install.sh

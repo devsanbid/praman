@@ -14,7 +14,6 @@ need() {
 
 need docker
 need openssl
-need go
 need curl
 if ! docker compose version >/dev/null 2>&1; then
   echo "Docker Compose is required." >&2
